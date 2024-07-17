@@ -1,0 +1,204 @@
+zabbix_export:
+  version: '7.0'
+  template_groups:
+    - uuid: f8882b6e24d4424093fed227ada2c26f
+      name: 'Templates'
+  templates:
+    - uuid: a39428da7a0c40e3b94d3f61e1b10145
+      template: 'Template App MaxScale'
+      name: 'Template App MaxScale'
+      groups:
+        - name: 'Templates'
+      items:
+        - uuid: 8651dc79961d4b04987b1d4d782b087c
+          name: 'MaxScale general RAW items'
+          type: HTTP_AGENT
+          key: maxscale.general
+          history: '0'
+          trends: '0'
+          value_type: TEXT
+          authtype: BASIC
+          username: '{$MAXSCALE_USER}'
+          password: '{$MAXSCALE_PASS}'
+          timeout: 3s
+          url: '{$MAXSCALE_URL}/v1/maxscale/'
+          tags:
+            - tag: Application
+              value: 'Zabbix raw items'
+          triggers:
+            - uuid: d33a884b3af1418e9e9f19f7d40cdd05
+              expression: 'nodata(/Template App MaxScale/maxscale.general,30m)=1'
+              name: 'No data received from MaxScale'
+              priority: WARNING
+        - uuid: 9f11942760e2478ba985ed51ccae7014
+          name: 'MaxScale services RAW items'
+          type: HTTP_AGENT
+          key: maxscale.services
+          history: '0'
+          trends: '0'
+          value_type: TEXT
+          authtype: BASIC
+          username: '{$MAXSCALE_USER}'
+          password: '{$MAXSCALE_PASS}'
+          timeout: 3s
+          url: '{$MAXSCALE_URL}/v1/services/'
+          tags:
+            - tag: Application
+              value: 'Zabbix raw items'
+        - uuid: 3fe1e78e3965416a85aa3679ca39bc69
+          name: 'MaxScale server uptime'
+          type: DEPENDENT
+          key: maxscale.uptime
+          delay: '0'
+          history: 90d
+          units: s
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.data.attributes.uptime
+          master_item:
+            key: maxscale.general
+          tags:
+            - tag: Application
+              value: MaxScale
+          triggers:
+            - uuid: c11978004044414183dc9db116123482
+              expression: 'last(/Template App MaxScale/maxscale.uptime)<10m'
+              name: 'MaxScale was restarted'
+              priority: INFO
+        - uuid: a39aacb961564fa2a0adf57fca977e8b
+          name: 'MaxScale service running'
+          key: 'proc.num[maxscale]'
+          history: 90d
+          triggers:
+            - uuid: 5c483c8662ca4dc8a7b103a931bfd500
+              expression: 'last(/Template App MaxScale/proc.num[maxscale])=0'
+              name: 'MaxScale service not running'
+              priority: HIGH
+      discovery_rules:
+        - uuid: c5e79e8569ee40e18f6d1e66f6c8e7d3
+          name: 'MaxScale Services discovery'
+          type: DEPENDENT
+          key: maxscale.services.discovery
+          delay: '0'
+          lifetime: 1d
+          enabled_lifetime_type: DISABLE_NEVER
+          item_prototypes:
+            - uuid: 21be5973c25f4f37a0decfaad30a3825
+              name: 'MaxScale client connections to service "{#SERVICE}"'
+              type: DEPENDENT
+              key: 'maxscale.service.connections[{#SERVICE}]'
+              delay: '0'
+              history: 90d
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.data[?(@.id == "{#SERVICE}")].attributes.connections'
+                - type: JSONPATH
+                  parameters:
+                    - '$[0]'
+              master_item:
+                key: maxscale.services
+              tags:
+                - tag: Application
+                  value: MaxScale
+            - uuid: 175835ce1ecb44d2b868bf1caef82570
+              name: 'MaxScale queries per second through service "{#SERVICE}"'
+              type: DEPENDENT
+              key: 'maxscale.service.queries[{#SERVICE}]'
+              delay: '0'
+              history: 90d
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.data[?(@.id == "{#SERVICE}")].attributes.router_diagnostics.queries'
+                - type: JSONPATH
+                  parameters:
+                    - '$[0]'
+                - type: CHANGE_PER_SECOND
+                  parameters:
+                    - ''
+              master_item:
+                key: maxscale.services
+              tags:
+                - tag: Application
+                  value: MaxScale
+            - uuid: a391f5f797f441e78545103ba2df73b3
+              name: 'MaxScale queries per second to all backend "{#SERVICE}"'
+              type: DEPENDENT
+              key: 'maxscale.service.routeall[{#SERVICE}]'
+              delay: '0'
+              history: 90d
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.data[?(@.id == "{#SERVICE}")].attributes.router_diagnostics.route_all'
+                - type: JSONPATH
+                  parameters:
+                    - '$[0]'
+                - type: CHANGE_PER_SECOND
+                  parameters:
+                    - ''
+              master_item:
+                key: maxscale.services
+              tags:
+                - tag: Application
+                  value: MaxScale
+            - uuid: b18b89cd3a7b41c980ce54b1be58e4b4
+              name: 'MaxScale queries per second to master "{#SERVICE}"'
+              type: DEPENDENT
+              key: 'maxscale.service.routemaster[{#SERVICE}]'
+              delay: '0'
+              history: 90d
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.data[?(@.id == "{#SERVICE}")].attributes.router_diagnostics.route_master'
+                - type: JSONPATH
+                  parameters:
+                    - '$[0]'
+                - type: CHANGE_PER_SECOND
+                  parameters:
+                    - ''
+              master_item:
+                key: maxscale.services
+              tags:
+                - tag: Application
+                  value: MaxScale
+            - uuid: c5d67e1ac37d48bcb673270b5662152d
+              name: 'MaxScale queries per second to slave "{#SERVICE}"'
+              type: DEPENDENT
+              key: 'maxscale.service.routeslave[{#SERVICE}]'
+              delay: '0'
+              history: 90d
+              preprocessing:
+                - type: JSONPATH
+                  parameters:
+                    - '$.data[?(@.id == "{#SERVICE}")].attributes.router_diagnostics.route_slave'
+                - type: JSONPATH
+                  parameters:
+                    - '$[0]'
+                - type: CHANGE_PER_SECOND
+                  parameters:
+                    - ''
+              master_item:
+                key: maxscale.services
+              tags:
+                - tag: Application
+                  value: MaxScale
+          master_item:
+            key: maxscale.services
+          lld_macro_paths:
+            - lld_macro: '{#SERVICE}'
+              path: $.id
+          preprocessing:
+            - type: JSONPATH
+              parameters:
+                - $.data
+      macros:
+        - macro: '{$MAXSCALE_PASS}'
+          value: maxscale_monitor_userpass
+        - macro: '{$MAXSCALE_URL}'
+          value: 'https://maxscale.host:8989/'
+        - macro: '{$MAXSCALE_USER}'
+          value: maxscale_monitor_user
